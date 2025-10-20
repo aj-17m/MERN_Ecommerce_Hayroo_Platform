@@ -1,104 +1,120 @@
 const orderModel = require("../models/orders");
 
-class Order {
+class OrderController {
+  // 🧾 Get all orders
   async getAllOrders(req, res) {
     try {
-      let Orders = await orderModel
+      const orders = await orderModel
         .find({})
         .populate("allProduct.id", "pName pImages pPrice")
         .populate("user", "name email")
         .sort({ _id: -1 });
-      if (Orders) {
-        return res.json({ Orders });
+
+      if (!orders || orders.length === 0) {
+        return res.status(404).json({ message: "No orders found" });
       }
-    } catch (err) {
-      console.log(err);
+
+      return res.status(200).json({ orders });
+    } catch (error) {
+      console.error("Error fetching all orders:", error);
+      return res.status(500).json({ error: "Server error while fetching orders" });
     }
   }
 
+  // 👤 Get order by user
   async getOrderByUser(req, res) {
-    let { uId } = req.body;
+    const { uId } = req.body;
+
     if (!uId) {
-      return res.json({ message: "All filled must be required" });
-    } else {
-      try {
-        let Order = await orderModel
-          .find({ user: uId })
-          .populate("allProduct.id", "pName pImages pPrice")
-          .populate("user", "name email")
-          .sort({ _id: -1 });
-        if (Order) {
-          return res.json({ Order });
-        }
-      } catch (err) {
-        console.log(err);
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    try {
+      const orders = await orderModel
+        .find({ user: uId })
+        .populate("allProduct.id", "pName pImages pPrice")
+        .populate("user", "name email")
+        .sort({ _id: -1 });
+
+      if (!orders || orders.length === 0) {
+        return res.status(404).json({ message: "No orders found for this user" });
       }
+
+      return res.status(200).json({ orders });
+    } catch (error) {
+      console.error("Error fetching user orders:", error);
+      return res.status(500).json({ error: "Server error while fetching user orders" });
     }
   }
 
+  // 🛒 Create a new order
   async postCreateOrder(req, res) {
-    let { allProduct, user, amount, transactionId, address, phone } = req.body;
-    if (
-      !allProduct ||
-      !user ||
-      !amount ||
-      !transactionId ||
-      !address ||
-      !phone
-    ) {
-      return res.json({ message: "All filled must be required" });
-    } else {
-      try {
-        let newOrder = new orderModel({
-          allProduct,
-          user,
-          amount,
-          transactionId,
-          address,
-          phone,
-        });
-        let save = await newOrder.save();
-        if (save) {
-          return res.json({ success: "Order created successfully" });
-        }
-      } catch (err) {
-        return res.json({ error: error });
-      }
+    const { allProduct, user, amount, transactionId, address, phone } = req.body;
+
+    if (!allProduct || !user || !amount || !transactionId || !address || !phone) {
+      return res.status(400).json({ message: "All fields must be provided" });
+    }
+
+    try {
+      const newOrder = new orderModel({
+        allProduct,
+        user,
+        amount,
+        transactionId,
+        address,
+        phone,
+      });
+
+      await newOrder.save();
+      return res.status(201).json({ success: "Order created successfully" });
+    } catch (error) {
+      console.error("Error creating order:", error);
+      return res.status(500).json({ error: "Server error while creating order" });
     }
   }
 
+  // ✏️ Update order status
   async postUpdateOrder(req, res) {
-    let { oId, status } = req.body;
+    const { oId, status } = req.body;
+
     if (!oId || !status) {
-      return res.json({ message: "All filled must be required" });
-    } else {
-      let currentOrder = orderModel.findByIdAndUpdate(oId, {
-        status: status,
+      return res.status(400).json({ message: "Order ID and status are required" });
+    }
+
+    try {
+      await orderModel.findByIdAndUpdate(oId, {
+        status,
         updatedAt: Date.now(),
       });
-      currentOrder.exec((err, result) => {
-        if (err) console.log(err);
-        return res.json({ success: "Order updated successfully" });
-      });
+
+      return res.status(200).json({ success: "Order updated successfully" });
+    } catch (error) {
+      console.error("Error updating order:", error);
+      return res.status(500).json({ error: "Server error while updating order" });
     }
   }
 
+  // 🗑️ Delete an order
   async postDeleteOrder(req, res) {
-    let { oId } = req.body;
+    const { oId } = req.body;
+
     if (!oId) {
-      return res.json({ error: "All filled must be required" });
-    } else {
-      try {
-        let deleteOrder = await orderModel.findByIdAndDelete(oId);
-        if (deleteOrder) {
-          return res.json({ success: "Order deleted successfully" });
-        }
-      } catch (error) {
-        console.log(error);
+      return res.status(400).json({ message: "Order ID is required" });
+    }
+
+    try {
+      const deletedOrder = await orderModel.findByIdAndDelete(oId);
+
+      if (!deletedOrder) {
+        return res.status(404).json({ message: "Order not found" });
       }
+
+      return res.status(200).json({ success: "Order deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      return res.status(500).json({ error: "Server error while deleting order" });
     }
   }
 }
 
-const ordersController = new Order();
-module.exports = ordersController;
+module.exports = new OrderController();
