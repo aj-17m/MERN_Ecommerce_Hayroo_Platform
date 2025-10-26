@@ -47,7 +47,6 @@ class OrderController {
     }
   }
 
-  // 🛒 Create a new order
   async postCreateOrder(req, res) {
     const { allProduct, user, amount, transactionId, address, phone } = req.body;
 
